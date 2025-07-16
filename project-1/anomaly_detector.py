@@ -13,7 +13,6 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning # type: 
 # Suppress only the InsecureRequestWarning
 warnings.simplefilter('ignore', InsecureRequestWarning)
 
-# TEMP: Elasticsearch composite template (not used in query, just placeholder)
 TEMP = {
     "size": 0,
     "_source": False,
@@ -52,9 +51,8 @@ TEMP = {
 #timestamp for model versioning
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-# Construct the path to the .env file (parent directory)
 env_path = Path(__file__).resolve().parent / ".env"
-# Load the .env file
+
 load_dotenv(dotenv_path=env_path)
 ELASTIC=os.getenv("ELASTIC")
 USER_NAME=os.getenv("USER_NAME")
@@ -74,7 +72,7 @@ print("Connected")
 # Current time in UTC
 now = datetime.now(timezone.utc)
 
-# Fetch logs from exactly X days ago (full day)
+
 end_time = datetime.now(timezone.utc) - timedelta(days=1)
 start_time = end_time.replace(hour=0, minute=0, second=0, microsecond=0)
 end_time = end_time.replace(hour=9, minute=59, second=59, microsecond=999999)
@@ -107,16 +105,14 @@ def fetch_recent_logs(es, index_name, start_time, end_time, scroll_size=1000):
         results = scan(es, query=query, index=index_name)
         docs = [doc["_source"] for doc in results]
 
-        # Flatten nested fields manually
         for doc in docs:
-            # Flatten url.path
+            
             url = doc.get("url")
             if isinstance(url, dict):
                 doc["url.path"] = url.get("path", "")
             elif isinstance(url, str):
                 doc["url.path"] = url
 
-            # Flatten client.geo.country_iso_code
             client = doc.get("client", {})
             if isinstance(client, dict):
                 doc["client.ip"] = client.get("ip")
@@ -124,15 +120,12 @@ def fetch_recent_logs(es, index_name, start_time, end_time, scroll_size=1000):
                 if isinstance(geo, dict):
                     doc["client.geo.country_iso_code"] = geo.get("country_iso_code")
 
-            # Flatten host.name
             host = doc.get("host", {})
             if isinstance(host, dict):
                 doc["host.name"] = host.get("name")
 
-        # Convert to DataFrame
         df = pd.DataFrame(docs)
 
-        # Safely keep only existing required columns
         desired_columns = {
             "@timestamp": "timestamp",
             "url.path": "url_path",
@@ -141,20 +134,15 @@ def fetch_recent_logs(es, index_name, start_time, end_time, scroll_size=1000):
             "client.ip": "ip"
         }
 
-        # Always include all desired columns, fill missing ones with NaN
         for col in desired_columns.keys():
             if col not in df.columns:
                 df[col] = None
 
         df = df[list(desired_columns.keys())].rename(columns=desired_columns)
-
-
-        
         df = df.rename(columns={"url.path": "url_path"})
 
         print(f"\nRetrieved {len(df)} records in the last {end_time}.\n")
 
-        # Print full DataFrame
         pd.set_option('display.max_rows', None)
         pd.set_option('display.max_columns', None)
 
@@ -164,9 +152,7 @@ def fetch_recent_logs(es, index_name, start_time, end_time, scroll_size=1000):
         print("Error fetching data:", e)
         return pd.DataFrame()
 
-
 df_recent_logs = fetch_recent_logs(es, INDEX_NAME, start_time, end_time)
-
 df_recent_logs["window_start"] = pd.to_datetime(df_recent_logs["timestamp"]).dt.floor("5min")
 
 
@@ -196,20 +182,14 @@ traversal_pattern = re.compile(
     r"(%2e%2e%2f|%2e%2e/|\.\./|\.\.%2f|%2e%2e%5c|\.\.\\|%2e%2e\\|\.{2}%5c|%252e%252e%255c|\.{2}%255c)",
     flags=re.IGNORECASE
 )
-
-# Apply rule-based detection (this becomes the final prediction)
+)
 df_recent_logs["Dir.Trav.Prediction"] = df_recent_logs["url_path"].astype(str).apply(
     lambda x: 1 if traversal_pattern.search(x) else 0
 )
 
-# Show result
 print("\nPredictions on recent data:")
-# List of columns you want to show
 desired_output_columns = ["timestamp", "window_start", "url_path", "country", "host", "ip", "Dir.Trav.Prediction"]
 
-
-# Filter to only available columns
 existing_output_columns = [col for col in desired_output_columns if col in df_recent_logs.columns]
 
-# Print the subset
 print(df_recent_logs[existing_output_columns])
