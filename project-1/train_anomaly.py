@@ -20,13 +20,10 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning # type: 
 # Suppress only the InsecureRequestWarning
 warnings.simplefilter('ignore', InsecureRequestWarning)
 
-#timestamp for model versioning
+
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-
-# Construct the path to the .env file (parent directory)
 env_path = Path(__file__).resolve().parent / ".env"
-# Load the .env file
+
 load_dotenv(dotenv_path=env_path)
 ELASTIC=os.getenv("ELASTIC")
 USER_NAME=os.getenv("USER_NAME")
@@ -35,7 +32,6 @@ INDEX_NAME=os.getenv("INDEX_NAME")
 
 print("Connecting to:", ELASTIC)
 
-# Connect to Elasticsearch
 es = Elasticsearch(
         hosts=[ELASTIC],
         basic_auth=(USER_NAME,ELASTIC_PASSWORD),  
@@ -46,14 +42,13 @@ print("Connected")
 # Current time in UTC
 now = datetime.now(timezone.utc)
 
-# === TIME RANGE FOR TR LOGS ===
+#TIME RANGE FOR TR LOGS
 tr_start_time = (now - timedelta(hours=1))
 tr_end_time = now
 
-# === TIME RANGE FOR WF LOGS ===
+#TIME RANGE FOR WF LOGS
 wf_start_time = (now - timedelta(days=5)).replace(hour=0, minute=0, second=0, microsecond=0)
 wf_end_time = (now - timedelta(days=1)).replace(hour=23, minute=59, second=59, microsecond=999999)
-
 
 def fetch_directory_traversal_logs(es, index_name, start_time, end_time, scroll_size=1000):
     query = {
@@ -141,7 +136,7 @@ def fetch_all_unique_url_paths(es, index_name, start_time, end_time, batch_size=
             if "after_key" in response["aggregations"]["unique_paths"]:
                 after_key = response["aggregations"]["unique_paths"]["after_key"]
             else:
-                break  # All data fetched
+                break  #All data fetched
 
         except Exception as e:
             print("Error fetching composite aggregation:", e)
@@ -236,8 +231,7 @@ print("Data split complete.")
 print(f"Training set: {X_train.shape[0]} rows")
 print(f"Test set: {X_test.shape[0]} rows")
 
-#Traing using hyper.
-# Define parameter search space
+#Traing using hyperparameters
 search_space = {
     'n_estimators': Integer(50, 300),
     'max_depth': Integer(3, 20),
@@ -246,25 +240,23 @@ search_space = {
     'max_features': Real(0.1, 1.0, prior='uniform')
 }
 
-# Set up Bayesian optimization
 opt = BayesSearchCV(
     estimator=RandomForestClassifier(random_state=42),
     search_spaces=search_space,
-    n_iter=32,                # Number of iterations to search
-    cv=3,                     # 3-fold cross-validation
-    scoring='accuracy',       # Optimization metric
+    n_iter=32,                
+    cv=3,                     
+    scoring='accuracy',      
     random_state=42,
-    n_jobs=-1                 # Use all available CPU cores
+    n_jobs=-1                 
 )
 
-# Run the search
-print("Starting Bayesian Optimization...")
+print("Starting Bayesian Optimization:")
 opt.fit(X_train, y_train)
 print("Best parameters found:", opt.best_params_)
 
 opt_results = opt.cv_results_
 
-# Get scores per iteration
+#scores per iter.
 scores = opt_results['mean_test_score']
 
 plt.figure(figsize=(10, 5))
@@ -278,12 +270,12 @@ plt.show()
 
 # Use the best model
 rf = opt.best_estimator_
-
 model_name = f"random_forest_{timestamp}"
-#--Save and load a trained model 
-# Save  trained model to file
+
+#Save and load a trained model 
+#Save  trained model to file
 import pickle
-model_path = fr"C:/Users/avryonides/Desktop/Python Codes/project/{model_name}.pkl"
+model_path = fr"C:{directory_path}"
 
 with open(model_path, 'wb') as f:
     pickle.dump(rf, f)
@@ -294,19 +286,15 @@ with open(model_path, 'rb') as f:
 
 #Load Model
 y_pred_loaded = loaded_rf.predict(X_test)
-#--
-
 #Predict on test set
 y_pred = rf.predict(X_test)
 
-#Evaluate the model
 print("\n Random Forest Classification Report: ")
 print(classification_report(y_test, y_pred))
 print("Confusion Matrix:")
 print(confusion_matrix(y_test, y_pred))
 print("Accuracy Score:", accuracy_score(y_test, y_pred))
 
-#Plot
 importances = rf.feature_importances_
 feature_names = features
 
@@ -316,8 +304,7 @@ plt.xlabel("Feature Importance")
 plt.title("Random Forest - Feature Importance")
 plt.tight_layout()
 plt.show()
- 
-# SHAP plot
+
 explainer = shap.Explainer(rf, X_train) 
 shap_values = explainer(X_test)
 shap.summary_plot(shap_values, X_test, feature_names=features)
