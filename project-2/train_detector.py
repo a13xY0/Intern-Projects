@@ -6,12 +6,11 @@ from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from pathlib import Path
 import warnings
+import copy
 from utilities import active_ma_sites
 from requests.packages.urllib3.exceptions import InsecureRequestWarning # type: ignore
 # Suppress only the InsecureRequestWarning
 warnings.simplefilter('ignore', InsecureRequestWarning)
-
-import copy  # required for deepcopy
 
 AGG_TEMPLATE = {
     "size": 0,
@@ -48,9 +47,8 @@ AGG_TEMPLATE = {
     }
 }
 
-# Construct the path to the .env file (parent directory)
 env_path = Path(__file__).resolve().parent / ".env"
-# Load the .env file
+
 load_dotenv(dotenv_path=env_path)
 ELASTIC=os.getenv("ELASTIC")
 USER_NAME=os.getenv("USER_NAME")
@@ -60,7 +58,6 @@ ALL_MANAGE_URL=os.getenv("ALL_MANAGE_URL")
 
 print("Connecting to:", ELASTIC)
 
-# Connect to Elasticsearch
 es = Elasticsearch(
         hosts=[ELASTIC],
         basic_auth=(USER_NAME,ELASTIC_PASSWORD),  
@@ -68,10 +65,8 @@ es = Elasticsearch(
     )
 print("Connected")
 
-# Current time in UTC
 now = datetime.now(timezone.utc)
 
-# Fetch logs from exactly X time ago
 end_time = datetime.now(timezone.utc) - timedelta(days=10)
 start_time = end_time.replace(hour=0, minute=0, second=0, microsecond=0)
 end_time = end_time.replace(hour=23, minute=59, second=59, microsecond=999999)
@@ -120,7 +115,7 @@ def fetch_recent_logs_aggregated(es, index_name, start_time, end_time):
 df_recent_logs_aggregated = fetch_recent_logs_aggregated(es, INDEX_NAME, start_time, end_time)
 print(df_recent_logs_aggregated)
 
-# Filter to only MA active sites
+
 ma_links_pd = active_ma_sites(ALL_MANAGE_URL)
 df_recent_logs_aggregated = df_recent_logs_aggregated.merge(ma_links_pd, how="inner", left_on="host_name", right_on="Domain")
 df_recent_logs_aggregated = df_recent_logs_aggregated.drop(["MA_Links", "Domain"], axis=1)
@@ -133,11 +128,9 @@ from skorch import NeuralNetRegressor
 from skorch.callbacks import EpochScoring
 from skopt import BayesSearchCV
 from skopt.space import Integer, Real
-
-# Step 1: Prepare Data
-
 from sklearn.preprocessing import MinMaxScaler
 
+# Step 1: Prepare Data
 feature_cols = [
     "distinct_urls", "methods_variety", "unique_user_agents",
     "bytes_avg_request", "bytes_avg_response",
@@ -152,7 +145,6 @@ X_sampled = X_full.sample(frac=0.1, random_state=42)
 
 scaler = MinMaxScaler()
 X_scaled = scaler.fit_transform(X_sampled).astype(np.float32)
-
 
 input_tensor = torch.tensor(X_scaled, dtype=torch.float32)
 dataset = TensorDataset(input_tensor)
@@ -183,7 +175,7 @@ class DynamicAutoencoder(nn.Module):
 net = NeuralNetRegressor(
     module=DynamicAutoencoder,
     module__input_dim=X_scaled.shape[1],
-    module__ld=4,  # will be tuned
+    module__ld=4,
     max_epochs=20,
     lr=0.001,
     optimizer=torch.optim.Adam,
@@ -219,8 +211,7 @@ best_model = opt.best_estimator_
 best_ld = opt.best_params_['module__ld']
 best_lr = opt.best_params_['lr']
 
-# Save the best model
-model_save_dir = "/home/administrator/behaviorate/scripts/intern_code/Alexandros Codes/project/models/"
+model_save_dir = "{directory path}"
 os.makedirs(model_save_dir, exist_ok=True)
 model_path = os.path.join(model_save_dir, "best_autoencoder.pt")
 best_model.save_params(f_params=model_path)
@@ -251,16 +242,12 @@ X_full_scaled = scaler.transform(X_full).astype(np.float32)
 with torch.no_grad():
     reconstructions_full = best_model.predict(X_full_scaled)
 
-#Equivalent of test_recon_error in PyTorch
-test_recon_error = np.mean((X_full_scaled - reconstructions_full) ** 2, axis=1)
 
-# Use this to define threshold and label anomalies
+test_recon_error = np.mean((X_full_scaled - reconstructions_full) ** 2, axis=1)
 threshold = np.percentile(test_recon_error, 99)
 
 df_recent_logs_aggregated["anomaly_score"] = test_recon_error
 df_recent_logs_aggregated["is_anomaly"] = df_recent_logs_aggregated["anomaly_score"] > threshold
-
-
 
 # Step 5: Output Results
 print("\nAnomaly detection complete.")
