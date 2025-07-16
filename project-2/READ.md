@@ -4,9 +4,7 @@ This project includes two Python scripts designed to train and deploy a neural n
 
 ---
 
-## Key Components
-
-### Neural Network Training (`rec_project.py`)
+### Neural Network Training
 
 - Built a custom **feedforward neural network** using **PyTorch**
 - Trained on **normal sensor data** to learn baseline behavioral patterns
@@ -19,7 +17,7 @@ This project includes two Python scripts designed to train and deploy a neural n
   - Optimizer: **Adam**
 - The trained model is saved for later use in anomaly detection
 
-### Real-Time Anomaly Detection (`detector.py`)
+### Anomaly Detection
 
 - Loads the previously trained neural network model
 - Accepts **streaming or batch sensor data** for inference
