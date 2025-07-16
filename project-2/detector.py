@@ -5,12 +5,11 @@ from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from pathlib import Path
 import warnings
+import copy
 from utilities import active_ma_sites
 from requests.packages.urllib3.exceptions import InsecureRequestWarning # type: ignore
 # Suppress only the InsecureRequestWarning
 warnings.simplefilter('ignore', InsecureRequestWarning)
-
-import copy  # required for deepcopy
 
 AGG_TEMPLATE = {
     "size": 0,
@@ -47,9 +46,9 @@ AGG_TEMPLATE = {
     }
 }
 
-# Construct the path to the .env file (parent directory)
+
 env_path = Path(__file__).resolve().parent / ".env"
-# Load the .env file
+
 load_dotenv(dotenv_path=env_path)
 ELASTIC=os.getenv("ELASTIC")
 USER_NAME=os.getenv("USER_NAME")
@@ -59,7 +58,6 @@ ALL_MANAGE_URL=os.getenv("ALL_MANAGE_URL")
 
 print("Connecting to:", ELASTIC)
 
-# Connect to Elasticsearch
 es = Elasticsearch(
         hosts=[ELASTIC],
         basic_auth=(USER_NAME,ELASTIC_PASSWORD),  
@@ -67,10 +65,9 @@ es = Elasticsearch(
     )
 print("Connected")
 
-# Current time in UTC
+
 now = datetime.now(timezone.utc)
 
-# Fetch logs from exactly X time ago
 end_time = datetime.now(timezone.utc) - timedelta(days=1)
 start_time = end_time.replace(hour=0, minute=0, second=0, microsecond=0)
 end_time = end_time.replace(hour=0, minute=4, second=59, microsecond=999999)
@@ -117,7 +114,7 @@ def fetch_recent_logs_aggregated(es, index_name, start_time, end_time):
 
 
 df_recent_logs_aggregated = fetch_recent_logs_aggregated(es, INDEX_NAME, start_time, end_time)
-#Filter: Keep only MA active sites
+
 ma_links_pd = active_ma_sites(ALL_MANAGE_URL)
 df_recent_logs_aggregated = df_recent_logs_aggregated.merge(
     ma_links_pd,
@@ -143,13 +140,11 @@ feature_cols = [
 ]
 
 X_full = df_recent_logs_aggregated[feature_cols].fillna(0)
-# Load the trained scaler from disk
-scaler_path = "/home/administrator/behaviorate/scripts/intern_code/Alexandros Codes/project/models/scaler.pkl"
+
+scaler_path = "{directory path}"
 scaler = joblib.load(scaler_path)
 
-# Apply same transformation as used during training
 X_full_scaled = scaler.transform(X_full).astype(np.float32)
-
 
 class DynamicAutoencoder(nn.Module):
     def __init__(self, input_dim=9, ld=4):
@@ -172,7 +167,7 @@ class DynamicAutoencoder(nn.Module):
 from skorch import NeuralNetRegressor
 
 import json
-params_path = "/home/administrator/behaviorate/scripts/intern_code/Alexandros Codes/project/models/best_params.json"
+params_path = "{directory path}"
 with open(params_path, "r") as f:
     best_params = json.load(f)
 
@@ -183,13 +178,13 @@ model = NeuralNetRegressor(
     module=DynamicAutoencoder,
     module__input_dim=9,
     module__ld=best_ld,
-    max_epochs=1,  # not used during inference
+    max_epochs=1,
     lr=best_lr,
     train_split=None,
     verbose=0
 )
 model.initialize()
-model_path = "/home/administrator/behaviorate/scripts/intern_code/Alexandros Codes/project/models/best_autoencoder.pt"
+model_path = "{directory path}"
 model.load_params(f_params=model_path)
 
 with torch.no_grad():
@@ -200,8 +195,7 @@ threshold = np.percentile(test_recon_error, 99)
 df_recent_logs_aggregated["anomaly_score"] = test_recon_error
 df_recent_logs_aggregated["is_anomaly"] = df_recent_logs_aggregated["anomaly_score"] > threshold
 
-
-# Step 5: Output Results
+#Output Results
 print("\nAnomaly detection complete.")
 print(
     df_recent_logs_aggregated[
@@ -209,7 +203,7 @@ print(
     ].sort_values("anomaly_score", ascending=False).head(10)
 )
 
-output_dir = "/home/administrator/behaviorate/scripts/intern_code/Alexandros Codes/project/anomalies/"
+output_dir = "{directory path}"
 os.makedirs(output_dir, exist_ok=True)
 
 output_path = os.path.join(output_dir, "detector_results.csv")
