@@ -1,49 +1,76 @@
-Anomaly Detection for Directory Traversal Attacks
-This project implements an automated anomaly detection pipeline to identify Directory Traversal attacks using real-world log data sourced from an Elasticsearch database. It integrates traditional rule-based detection techniques with a supervised machine learning approach, specifically a Random Forest Classifier, to enhance the detection of anomalous URL patterns indicative of malicious activity.
+#  Anomaly Detection for Directory Traversal Attacks
 
-Key Components
-Data Collection:
-Logs are ingested from a live Elasticsearch instance. The pipeline extracts relevant fields including timestamps, URL paths, client IPs, hostnames, and country codes. The time window can be dynamically configured to retrieve specific historical or real-time data.
+This project implements an **automated anomaly detection pipeline** to identify **Directory Traversal attacks** using real-world log data from an **Elasticsearch** database. It combines traditional **rule-based detection** techniques with a **supervised machine learning model** (Random Forest Classifier) to enhance anomaly detection in URL patterns indicative of malicious behavior.
 
-Labeling and Preprocessing:
-Logs labeled as "DIRECTORY_TRAVERSAL_BEYOND_ROOT" are treated as positive samples (attacks), while traffic logs (log_type = TR) are treated as negative samples. Preprocessing includes flattening nested JSON structures and applying consistent formatting across features.
+---
 
-Feature Engineering:
-Custom features were derived from URL paths to capture behavioral patterns, including:
+###  Data Collection
 
-URL length
+- Logs are ingested from a live **Elasticsearch** instance.
+- Extracted fields:
+  - Timestamps
+  - URL paths
+  - Client IPs
+  - Hostnames
+  - Country codes
+- The time window is **dynamically configurable** to retrieve specific historical or real-time data.
 
-Number of dots (.)
+###  Labeling & Preprocessing
 
-Number of slashes (/)
+- Logs labeled as `"DIRECTORY_TRAVERSAL_BEYOND_ROOT"` → **Positive samples (attacks)**
+- Logs with `log_type = TR` → **Negative samples (benign traffic)**
+- Preprocessing steps:
+  - Flattening nested JSON
+  - Consistent formatting across all features
 
-Number of traversal indicators (e.g., ../, %2e, %2f)
+###  Feature Engineering
 
-Binary flag for URLs ending with a slash
+Custom features are derived from URL paths to capture behavioral patterns:
 
-Model Training:
-A Random Forest classifier was trained using these features, with hyperparameters optimized via Bayesian Optimization using BayesSearchCV for efficient tuning. The classifier was validated using stratified train-test splitting and evaluated using metrics like accuracy, confusion matrix, and classification report.
+- URL length
+- Number of dots (`.`)
+- Number of slashes (`/`)
+- Number of traversal indicators (e.g., `../`, `%2e`, `%2f`)
+- Binary flag for URLs ending with a slash (`/`)
 
-Model Interpretation:
-Feature importance was visualized using:
+###  Model Training
 
-Standard bar plots
+- **Random Forest Classifier** trained on engineered features
+- **Hyperparameter tuning** via **Bayesian Optimization** using `BayesSearchCV`
+- Evaluation metrics:
+  - Accuracy
+  - Confusion matrix
+  - Classification report
 
-SHAP (SHapley Additive exPlanations) summary plots for a deeper understanding of model decisions.
+###  Model Interpretation
 
-Inference & Rule-based Augmentation:
-For recent log entries, predictions are made using the trained model. Additionally, a parallel rule-based filter using regular expressions targets common traversal patterns as a safeguard and interpretability layer.
+Model insights were visualized using:
 
-Versioning and Deployment:
-Trained models are serialized with timestamps for version tracking. The system supports loading the most recent model automatically for real-time predictions.
+- Bar plots for **feature importance**
+- **SHAP** (SHapley Additive exPlanations) summary plots for model explainability
 
-Technologies Used
-Python, pandas, scikit-learn, matplotlib, SHAP
+###  Inference & Rule-based Augmentation
 
-Elasticsearch (via elasticsearch-py)
+- Predicts recent log entries using the trained model
+- A parallel **rule-based filter** (regex-based) augments detection of common traversal patterns  
+  → Adds interpretability and acts as a safeguard
 
-dotenv for secure credential management
+###  Versioning & Deployment
 
-skopt for Bayesian hyperparameter tuning
+- Trained models are **timestamped and serialized** for version control
+- The system supports automatic loading of the **latest model** for real-time predictions
 
-This project demonstrates how traditional security signatures and machine learning models can be combined for more robust anomaly detection in cybersecurity pipelines. The modular design allows for extension to other attack types beyond directory traversal.
+---
+
+## 🛠 Technologies Used
+
+- `Python`, `pandas`, `scikit-learn`, `matplotlib`, `SHAP`
+- `Elasticsearch` (via `elasticsearch-py`)
+- `dotenv` for secure credential management
+- `skopt` for Bayesian hyperparameter optimization
+
+---
+
+##  Summary
+
+This project showcases how **traditional security signatures** and **machine learning** can be **combined** for robust anomaly detection. Its modular architecture allows easy extension to detect other attack types beyond directory traversal.
