@@ -31,7 +31,7 @@ es = Elasticsearch(
     )
 print("Connected")
 
-db_path = '/home/administrator/behaviorate/scripts/intern_code/Alexandros Codes/project/PROJECT3/GeoLite2-ASN.mmdb'
+db_path = '{directory path}'
 reader = geoip2.database.Reader(db_path)
 
 # Current time in UTC
@@ -140,7 +140,7 @@ def fetch_logs():
 
     df = df.drop(["MA_Links", "Domain"], axis=1)
 
-    output_path = "/home/administrator/behaviorate/scripts/intern_code/Alexandros Codes/project/PROJECT3/vps_detection_logs.csv"
+    output_path = "{directory path}"
     df.to_csv(output_path)
     print(f"Total documents with distinct client.ip's: {len(df)}")
     return df
