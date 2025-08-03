@@ -9,4 +9,4 @@ In this project, I developed two Python scripts aimed at training a neural netwo
 
 ## PROJECT 3: VPS Detection from Elasticsearch Logs
 
-This project is a Python-based tool designed to detect whether clients accessing a system are using known VPS (Virtual Private Server) providers. It queries an Elasticsearch index for logs within the last 10 minutes, filters distinct client IPs, checks them against a known list of VPS providers using MaxMind's GeoLite2 ASN database, and exports the results to a CSV.
+This project is a Python-based tool designed to detect whether clients accessing a system using known VPS (Virtual Private Server) providers. It queries an Elasticsearch index for logs within the last 10 minutes, filters distinct client IPs, checks them against a known list of VPS providers using MaxMind's GeoLite2 ASN database, and exports the results to a CSV.
